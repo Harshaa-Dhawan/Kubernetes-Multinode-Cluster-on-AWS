@@ -1,0 +1,77 @@
+STEP 1- Configure the WORKER NODES, login using its public ip address.
+
+Initial configuration is almost similar as that of master node, which is:
+
+-->Installing docker ( From Step 2 IN MASTER NODE GUIDE)
+
+-->Installing kubeadm
+
+-->Till installing iproute-tc (In step 5 IN MASTER NODE GUIDE)
+
+BELOW ARE THE AFOREMENTIONED COMMANDS:
+
+# sudo su - root
+
+# yum install docker -y
+
+# systemctl enable docker --now
+
+# vi /etc/yum.repos.d/kubernetes.repo
+
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+exclude=kubelet kubeadm kubectl
+
+
+# cat /etc/yum.repos.d/kubernetes.repo
+
+# yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+
+# systemctl enable --now kubelet
+
+# vim /etc/docker/daemon.json
+
+{
+  "exec-opts": ["native.cgroupdriver=systemd"]
+}
+
+
+# systemctl restart docker
+
+# yum install iproute-tc
+
+
+
+STEP 2 - Next, join the worker nodes to master node. But before that we need to resolve an error that can come up if we do it directly. This error is related to iptables content not set to 1. Hence, run this command for it:
+
+# cat <<EOF | sudo tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+
+# sudo sysctl --system
+
+
+STEP 3 - Now to join worker nodes with master we need to run kubeadm join command in which a token is given by master for this connection. We can retrive this token in 2 ways:
+
+With command, to see tokens: 
+# kubeadm token list
+
+Then creating a token by: 
+# kubeadm token create --print-join-command
+
+Or while kubeadm init command in the end we can see this whole command mentioned there with the tokens as well.
+
+Now, run this command in the worker node (this token is for my instance, which no longer exists, you have to create and run your own)-
+
+
+kubeadm join 172.31.43.35:6443 --token ia6pkr.jglqvwy0l0vzm3h0 \
+        --discovery-token-ca-cert-hash sha256:f28bbf2b91814c1df4b76d3b53957532a6ac5c9d6c789760acff6bda8fa05edb
+
+
+*Do the same procedure to create more worker nodes.( I have created 2).*

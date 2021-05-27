@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mydb
+  labels:
+    app: dbs
+spec:
+  nodeName: ip-172-31-43-124.ap-south-1.compute.internal
+  containers:
+  - name: mydb
+    image: mysql:5.7
+    env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: root
+    - name: MYSQL_DATABASE
+      value: wpdb
+    - name: MYSQL_USER
+      value: harshaa
+    - name: MYSQL_PASSWORD
+      value: root

@@ -1,0 +1,119 @@
+STEP 1- Create 3 ec2 instances on AWS Cloud, 1 for master 2 for slave nodes.
+
+
+
+STEP 2- To start the configuration, login into the master node using its Public IP Address.
+
+Minimum requirement for a master or slave node here to work properly is to have a container engine installed i.e. Docker, that I am using here. So firstly we will install docker and enable it:
+
+# yum install docker -y
+
+# systemctl enable docker --now
+
+
+
+STEP 3- Now to set-up k8s we will install kubeadm:
+
+--> First Reconfigure yum in " /etc/yum.repos.d/kubernetes.repo " this file and add the below mentioned data after command,
+
+# vim /etc/yum.repos.d/kubernetes.repo
+
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+exclude=kubelet kubeadm kubectl
+
+Then write command to install kubeadm kubelet and kubectl:
+
+# yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+
+Then start the kubelet services:
+
+# systemctl enable kubelet --now
+
+
+
+STEP 4- Pull all the images that are required by the master, through this command:
+
+#kubeadm config images pull
+
+
+
+STEP 5- Specify the range of ip address that pods will get. But before we do that we need to resolve few warnings and errors that we can get if done directly.
+
+-->Hence, firstly change the cgroup driver to systemd with the following commands then restart the docker after these changes :
+
+# cd /etc/docker
+
+# vim daemon.json
+
+{
+  "exec-opts": ["native.cgroupdriver=systemd"]
+}
+
+# systemctl restart docker
+
+
+-->K8s needs software internally to do routing , install iproute-tc:
+
+# yum install iproute-tc
+
+
+Now run the kubeadm init command to specify ip range. As we are using t2.micro instance type, we only have 1 CPU and 1 GiB RAM available to us which is less than the preffered minimun requirements of k8s.
+
+Hence we will also remove that restriction for our purposes:
+
+# kubeadm init --pod-network-cidr=10.240.0.0/16 --ignore-preflight-errors=NumCPU  --ignore-preflight-errors=Mem
+
+To use this cluster as a regular user run these commands, where admin.conf file contains information like ip address, port no, username, etc of master which is copied to $HOME location.
+
+# mkdir -p $HOME/.kube
+# sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+# sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+
+
+*Configure worker nodes now and then do the following steps*
+
+STEP 6 - Using Flannel to make the status of all the nodes from NOT READY to READY state.
+
+# kubectl get nodes
+
+We need to run Container Network Interface (CNI) i.e. Flannel, command in the master node for proper communication between the pods for networking in this cluster.
+
+# kubectl apply -f https://raw.githubusercontent.com/coreos/flanner/Documentation/kube-flannel.yml
+
+# kubectl get nodes
+
+--> "Edit network to 240 instead of 244 in configmap"
+
+# kubectl edit configmap kube-flannel-cfg -n kube-system
+
+# kubectl delete pods -l app=flannel -n kube-system
+
+# kubectl get pods -l k8s-app=kube-dns -n kube-system
+
+STEP 7 - Create a wordpress.yml file in the master node giving nodeName as worker node 1 name:
+
+# kubectl create -f wordpress.yml
+
+STEP 8 - Create mydb.yml file in the master node giving nodeName as worker node 2 name:
+
+# kubectl create -f mydb.yml
+
+STEP 9 - Now expose these pods to external world for other users to access it as well.
+
+# kubectl get pods
+
+# kubectl expose pods wp-deployment-9cdc6c9fb-qz66b --type=NodePort --port=80
+
+#kubectl get svc
+
+# kubectl describe pod mydb
+
+
+*YOU CAN OPEN THE WORDPRESS SITE NOW*

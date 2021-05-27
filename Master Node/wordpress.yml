@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wp-deployment
+  labels:
+    app: wp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wp
+  template:
+    metadata:
+      labels:
+        app: wp
+    spec:
+      nodeName: ip-172-31-38-119.ap-south-1.compute.internal
+      containers:
+      - name: wp
+        image: wordpress:5.1.1-php7.3-apache
